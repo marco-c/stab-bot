@@ -5,11 +5,11 @@
 
 import sys
 import ssl
-import threading
 import json
 from datetime import timedelta
 import irc.bot
 import irc.strings
+import time
 import versions
 import utils
 
@@ -71,7 +71,6 @@ class StabBot(irc.bot.SingleServerIRCBot):
         ssl_factory = irc.connection.Factory(wrapper=ssl.wrap_socket)
         irc.bot.SingleServerIRCBot.__init__(self, [('irc.mozilla.org', 6697)], 'stab-bot', 'stab-bot', connect_factory=ssl_factory)
         self.irc_channels = channels
-        self.scheduled_task = None
 
     def on_nicknameinuse(self, c, e):
         c.nick(c.get_nickname() + '_')
@@ -90,15 +89,9 @@ class StabBot(irc.bot.SingleServerIRCBot):
         if len(a) > 1 and irc.strings.lower(a[0]) == irc.strings.lower(self.connection.get_nickname()):
             self.do_command(e, a[1].strip())
 
-    def on_disconnect(self, c, e):
-        if self.scheduled_task is not None:
-            self.scheduled_task.cancel()
-
     def do_command(self, e, cmd):
         if cmd == 'die':
             self.die()
-        elif cmd == 'stats':
-            self.connection.privmsg(e.target, e.source.nick + ': OK')
         else:
             self.connection.privmsg(e.target, e.source.nick + ': Unknown command <' + cmd + '>')
 
@@ -110,10 +103,8 @@ class StabBot(irc.bot.SingleServerIRCBot):
                 self.connection.privmsg(c, 'marco: Found some signatures with missing symbols:')
 
                 for rank, channel, signature in suspicious_signatures:
+                    time.sleep(1)
                     self.connection.privmsg(c, '    #' + str(rank) + ' on ' + channel + ': ' + signature)
-
-        self.scheduled_task = threading.Timer(21600, self.send_suspicious)  # Once every 6 hours.
-        self.scheduled_task.start()
 
 
 if __name__ == '__main__':
